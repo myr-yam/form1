@@ -23,52 +23,61 @@
     <div id="viewDiv"></div>
     <div id="sketchDiv"></div>
     <script>
-  require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/widgets/Sketch",
-    "esri/layers/GraphicsLayer"
-  ], function(Map, MapView, Sketch, GraphicsLayer) {
-    const graphicsLayer = new GraphicsLayer();
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/widgets/Sketch",
+        "esri/layers/GraphicsLayer"
+      ], function(Map, MapView, Sketch, GraphicsLayer) {
 
-    const map = new Map({
-      basemap: "topo-vector",
-      layers: [graphicsLayer]
-    });
+        function setCookie(name, value, days) {
+          const d = new Date();
+          d.setTime(d.getTime() + (days*24*60*60*1000));
+          document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
+        }
 
-    const view = new MapView({
-      container: "viewDiv",
-      map: map,
-      center: [31.8, 30.4],  // Default center
-      zoom: 8
-    });
+        const graphicsLayer = new GraphicsLayer();
 
-    const sketch = new Sketch({
-      layer: graphicsLayer,
-      view: view,
-      creationMode: "update",
-      availableCreateTools: ["point"],
-      container: "sketchDiv"
-    });
+        const map = new Map({
+          basemap: "topo-vector",
+          layers: [graphicsLayer]
+        });
 
-    sketch.on("create", function(event) {
-      if (event.state === "complete") {
-        const geometry = event.graphic.geometry;
-        const lon = geometry.longitude;
-        const lat = geometry.latitude;
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [31.8, 30.4],  
+          zoom: 8
+        });
 
-        // Send selected coordinates back to Joget form
-        window.parent.postMessage(
-          {
-            type: "coordinateSelected",
-            coordinates: `${lat.toFixed(6)}, ${lon.toFixed(6)}`
-          },
-          "*"
-        );
-      }
-    });
-  });
-</script>
+        const sketch = new Sketch({
+          layer: graphicsLayer,
+          view: view,
+          creationMode: "update",
+          availableCreateTools: ["point"],
+          container: "sketchDiv"
+        });
 
+        sketch.on("create", function(event) {
+          if (event.state === "complete") {
+            const geometry = event.graphic.geometry;
+            const lon = geometry.longitude;
+            const lat = geometry.latitude;
+
+            // Save to cookie
+            setCookie("engineerCoords", `${lat.toFixed(6)},${lon.toFixed(6)}`, 1);
+
+            // Send to Joget form
+            window.parent.postMessage(
+              {
+                type: "coordinateSelected",
+                coordinates: `${lat.toFixed(6)}, ${lon.toFixed(6)}`
+              },
+              "*"
+            );
+          }
+        });
+      });
+    </script>
   </body>
 </html>
