@@ -1,32 +1,34 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>Map 1 (Engineer)</title>
-  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
-  <script src="https://js.arcgis.com/4.29/"></script>
-  <style>
-    html, body, #viewDiv { height: 100%; margin: 0; padding: 0; }
-    #sketchDiv {
-      position: absolute; top: 10px; left: 10px; z-index: 99;
-      background: white; padding: 10px; border-radius: 6px;
-    }
-  </style>
-</head>
-<body>
-  <div id="viewDiv"></div>
-  <div id="sketchDiv"></div>
-
-  <script>
+  <head>
+    <meta charset="utf-8" />
+    <title>ArcGIS Map in Joget</title>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.29/"></script>
+    <style>
+      html, body, #viewDiv { height: 100%; margin: 0; padding: 0; }
+      #sketchDiv {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 99;
+        background: white;
+        padding: 10px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div id="sketchDiv"></div>
+    <script>
   require([
     "esri/Map",
     "esri/views/MapView",
     "esri/widgets/Sketch",
-    "esri/layers/GraphicsLayer",
-    "esri/Graphic"
-  ], function(Map, MapView, Sketch, GraphicsLayer, Graphic) {
-
+    "esri/layers/GraphicsLayer"
+  ], function(Map, MapView, Sketch, GraphicsLayer) {
     const graphicsLayer = new GraphicsLayer();
 
     const map = new Map({
@@ -37,7 +39,7 @@
     const view = new MapView({
       container: "viewDiv",
       map: map,
-      center: [31.8, 30.4], // your original center
+      center: [31.8, 30.4],  // Default center
       zoom: 8
     });
 
@@ -45,50 +47,28 @@
       layer: graphicsLayer,
       view: view,
       creationMode: "update",
-      availableCreateTools: ["point"], // keep Map 1 as points-only
+      availableCreateTools: ["point"],
       container: "sketchDiv"
     });
 
-    function saveAllGraphicsToParent() {
-      const arr = graphicsLayer.graphics.toArray().map(g => g.toJSON());
-      window.parent.postMessage({ type: "SAVE_SKETCH", data: JSON.stringify(arr) }, "*");
-    }
-
-    // Send coords as you originally did + save entire layer JSON
     sketch.on("create", function(event) {
       if (event.state === "complete") {
-        const g = event.graphic;
-        if (g && g.geometry && g.geometry.longitude != null && g.geometry.latitude != null) {
-          const lon = g.geometry.longitude, lat = g.geometry.latitude;
-          window.parent.postMessage({
-            type: "COORDINATE_SELECTED",
+        const geometry = event.graphic.geometry;
+        const lon = geometry.longitude;
+        const lat = geometry.latitude;
+
+        // Send selected coordinates back to Joget form
+        window.parent.postMessage(
+          {
+            type: "coordinateSelected",
             coordinates: `${lat.toFixed(6)}, ${lon.toFixed(6)}`
-          }, "*");
-        }
-        saveAllGraphicsToParent();
-      }
-    });
-
-    sketch.on("update", function(event) {
-      if (event.state === "complete") saveAllGraphicsToParent();
-    });
-
-    sketch.on("delete", function() {
-      saveAllGraphicsToParent();
-    });
-
-    // Receive saved sketches from parent
-    window.addEventListener("message", function(event) {
-      if (!event.data || event.data.type !== "LOAD_SKETCH") return;
-      try {
-        const arr = event.data.data ? JSON.parse(event.data.data) : [];
-        graphicsLayer.removeAll();
-        arr.forEach(gjson => graphicsLayer.add(new Graphic(gjson)));
-      } catch (e) {
-        console.error("Failed to load sketches:", e);
+          },
+          "*"
+        );
       }
     });
   });
-  </script>
-</body>
+</script>
+
+  </body>
 </html>
