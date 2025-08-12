@@ -66,18 +66,13 @@
         }
 
         /** Load coordinates into map **/
-        sketch.on("create", function(event) {
-      if (event.state === "complete") {
-        const geometry = event.graphic.geometry;
-        const lon = geometry.longitude;
-        const lat = geometry.latitude;
-
-        // Send selected coordinates back to Joget form
-        window.parent.postMessage(
-          {
-            type: "coordinateSelected",
-            coordinates: `${lat.toFixed(6)}, ${lon.toFixed(6)}`
-          },
+        function loadCoordinates() {
+          const coordField = getField("coordinates");
+          if (coordField && coordField.value) {
+            const [lat, lon] = coordField.value.split(",").map(Number);
+            if (!isNaN(lat) && !isNaN(lon)) {
+              view.center = [lon, lat];
+              view.zoom = 16;
 
               // Add marker for site location
               graphicsLayer.add(
@@ -142,4 +137,3 @@
     </script>
   </body>
 </html>
-
