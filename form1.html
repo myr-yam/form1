@@ -23,53 +23,76 @@
     <div id="viewDiv"></div>
     <div id="sketchDiv"></div>
     <script>
-  require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/widgets/Sketch",
-    "esri/layers/GraphicsLayer"
-  ], function(Map, MapView, Sketch, GraphicsLayer) {
-    const graphicsLayer = new GraphicsLayer();
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/widgets/Sketch",
+        "esri/layers/GraphicsLayer",
+        "esri/Graphic"
+      ], function(Map, MapView, Sketch, GraphicsLayer, Graphic) {
 
-    const map = new Map({
-      basemap: "topo-vector",
-      layers: [graphicsLayer]
-    });
+        const graphicsLayer = new GraphicsLayer();
 
-    const view = new MapView({
-      container: "viewDiv",
-      map: map,
-      center: [31.8, 30.4],
-      zoom: 8
-    });
+        const map = new Map({
+          basemap: "topo-vector",
+          layers: [graphicsLayer]
+        });
 
-    const sketch = new Sketch({
-      layer: graphicsLayer,
-      view: view,
-      creationMode: "update",
-      availableCreateTools: ["point"],
-      container: "sketchDiv"
-    });
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [31.8, 30.4],
+          zoom: 8
+        });
 
-    sketch.on("create", function(event) {
-      if (event.state === "complete") {
-        const geometry = event.graphic.geometry;
-        const lon = geometry.longitude;
-        const lat = geometry.latitude;
+        const sketch = new Sketch({
+          layer: graphicsLayer,
+          view: view,
+          creationMode: "update",
+          availableCreateTools: ["point", "polyline", "polygon", "rectangle", "circle"],
+          container: "sketchDiv"
+        });
 
-        // Send coordinates back to Joget via postMessage
-        window.parent.postMessage(
-          {
-            type: "coordinateSelected",
-            coordinates: `${lat.toFixed(6)}, ${lon.toFixed(6)}`
-          },
-          "*"
-        );
-      }
-    });
-  });
-</script>
+        // Find sketch storage field in Joget form
+        function getSketchField() {
+          try {
+            return window.parent.document.querySelector("textarea[name='site_sketch'], input[name='site_sketch']");
+          } catch (e) {
+            console.warn("Unable to access parent form:", e);
+            return null;
+          }
+        }
 
+        // Load saved sketches
+        function loadSketches() {
+          const field = getSketchField();
+          if (field && field.value) {
+            try {
+              const savedGraphics = JSON.parse(field.value);
+              savedGraphics.forEach(g => graphicsLayer.add(new Graphic(g)));
+            } catch (err) {
+              console.warn("Error parsing saved sketches:", err);
+            }
+          }
+        }
+
+        // Save sketches to field
+        function saveSketches() {
+          const field = getSketchField();
+          if (field) {
+            const graphicsData = graphicsLayer.graphics.toArray().map(g => g.toJSON());
+            field.value = JSON.stringify(graphicsData);
+          }
+        }
+
+        // Listen for changes
+        sketch.on("create", e => { if (e.state === "complete") saveSketches(); });
+        sketch.on("update", e => { if (e.state === "complete") saveSketches(); });
+        sketch.on("delete", saveSketches);
+
+        // Load when form is ready
+        setTimeout(loadSketches, 1000);
+      });
+    </script>
   </body>
 </html>
-
